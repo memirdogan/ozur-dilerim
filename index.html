@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barışalım mı?</title>
+<style>
+  :root {
+    --pink: #ffe0e6;
+    --pink-deep: #ff6b81;
+    --green: #4caf7d;
+    --text: #7a2e3a;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    min-height: 100dvh;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: linear-gradient(160deg, #ffe8ec, #ffd3dc);
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px 16px;
+    min-height: 100dvh;
+    width: 100%;
+  }
+  h1 {
+    color: var(--text);
+    font-size: clamp(1.5rem, 7vw, 2.8rem);
+    max-width: 650px;
+    width: 100%;
+    line-height: 1.35;
+    margin-bottom: 28px;
+    font-weight: 800;
+  }
+  .mascot-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 28px;
+  }
+  .heart-above {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    font-size: 1.6rem;
+    transform: translate(-50%, -100%);
+    animation: heartbeat 1.1s ease-in-out infinite;
+    transition: font-size 0.3s ease;
+  }
+  @keyframes heartbeat {
+    0%, 100% { transform: translate(-50%, -100%) scale(1); }
+    50% { transform: translate(-50%, -100%) scale(1.3); }
+  }
+  .mascot {
+    font-size: clamp(3rem, 12vw, 6rem);
+    display: inline-block;
+    animation: bob 2.4s ease-in-out infinite;
+    transition: transform 0.25s ease;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(-3deg); }
+  }
+  .mascot.happy { animation: pop 0.6s ease; }
+  @keyframes pop {
+    0% { transform: scale(0.6) rotate(-10deg); }
+    60% { transform: scale(1.25) rotate(6deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  .buttons {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  button {
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 700;
+    font-family: inherit;
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  }
+  #yesBtn {
+    background: var(--green);
+    color: white;
+    padding: 18px 38px;
+    font-size: 1.4rem;
+  }
+  #yesBtn:hover { filter: brightness(1.08); }
+  #noBtn {
+    background: var(--pink-deep);
+    color: white;
+    padding: 16px 28px;
+    font-size: 1.2rem;
+  }
+  #noBtn:hover { filter: brightness(1.08); }
+  .final {
+    display: none;
+    max-width: 500px;
+  }
+  .final h1 { margin-bottom: 10px; }
+  .subtitle {
+    color: var(--text);
+    opacity: 0.85;
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-top: 18px;
+  }
+  #confetti {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+  }
+  .heart {
+    position: absolute;
+    top: -10%;
+    font-size: 1.5rem;
+    animation: fall linear forwards;
+    opacity: 0.9;
+  }
+  @keyframes fall {
+    to { transform: translateY(110vh) rotate(360deg); opacity: 0.3; }
+  }
+</style>
+</head>
+<body>
+
+  <div id="questionScreen">
+    <div class="mascot-wrap">
+      <div class="heart-above" id="heartAbove">💗</div>
+      <div class="mascot" id="mascot">🐱</div>
+    </div>
+    <h1 id="question">Seni üzdüğüm için özür dilerim.<br>Barışalım mı?</h1>
+    <div class="buttons">
+      <button id="yesBtn">Evet</button>
+      <button id="noBtn">Hayır</button>
+    </div>
+    <p class="subtitle" id="hint"></p>
+  </div>
+
+  <div class="final" id="finalScreen">
+    <div class="mascot happy">🥳💖</div>
+    <h1 id="finalText">Evet diyeceğini biliyordumm!</h1>
+    <p class="subtitle">Teşekkür Ederimm &lt;3</p>
+  </div>
+
+  <div id="confetti"></div>
+
+<script>
+  const noBtn = document.getElementById('noBtn');
+  const yesBtn = document.getElementById('yesBtn');
+  const mascot = document.getElementById('mascot');
+  const hint = document.getElementById('hint');
+  const questionScreen = document.getElementById('questionScreen');
+  const finalScreen = document.getElementById('finalScreen');
+
+  // Escalating "no" button texts — the more you refuse, the harder it pushes back.
+  const noTexts = [
+    'Hayır',
+    'Emin misin?',
+    'Gerçekten mi?',
+    'Bir daha düşün...',
+    'Son şansın!',
+    'Yapma ama :(',
+    'Tamam mecbur bırakıyorsun'
+  ];
+
+  const mascotFaces = ['🐱','🙀','😿','😾','😢','🥺','😭'];
+
+  let noClicks = 0;
+  const maxClicks = noTexts.length - 1;
+
+  const heartAbove = document.getElementById('heartAbove');
+
+  function growYes() {
+    const mobile = window.innerWidth < 480;
+    const factor = mobile ? 0.55 : 1;
+    const scale = 1 + noClicks * 0.35 * factor;
+    yesBtn.style.fontSize = (1.4 * scale) + 'rem';
+    yesBtn.style.padding = (18 + noClicks * 6 * factor) + 'px ' + (38 + noClicks * 12 * factor) + 'px';
+    yesBtn.style.maxWidth = '88vw';
+    heartAbove.style.fontSize = (1.8 + noClicks * 0.35 * factor) + 'rem';
+  }
+
+  function shrinkNo() {
+    const scale = Math.max(0.35, 1 - noClicks * 0.11);
+    noBtn.style.fontSize = (1.2 * scale) + 'rem';
+    noBtn.style.padding = Math.max(5, 16 - noClicks * 1.6) + 'px ' + Math.max(10, 28 - noClicks * 3) + 'px';
+    noBtn.style.opacity = Math.max(0.25, 1 - noClicks * 0.13);
+  }
+
+  function rectsOverlap(a, b, pad) {
+    return !(a.right + pad < b.left || a.left - pad > b.right ||
+             a.bottom + pad < b.top || a.top - pad > b.bottom);
+  }
+
+  const questionEl = document.getElementById('question');
+
+  // Jumps the "no" button to a random spot on screen, steering clear of the
+  // question text, mascot and "yes" button so it never lands on top of them
+  // (used by both the desktop hover-dodge and the touch/mobile post-tap dodge below).
+  function dodgeNoBtn() {
+    const rect = noBtn.getBoundingClientRect();
+    const avoid = [yesBtn, questionEl, document.querySelector('.mascot-wrap')]
+      .map(el => el.getBoundingClientRect());
+    const maxX = Math.max(0, window.innerWidth - rect.width - 20);
+    const maxY = Math.max(0, window.innerHeight - rect.height - 20);
+
+    let x, y, candidate, tries = 0;
+    do {
+      x = Math.random() * maxX;
+      y = Math.random() * maxY;
+      candidate = { left: x, right: x + rect.width, top: y, bottom: y + rect.height };
+      tries++;
+    } while (avoid.some(a => rectsOverlap(candidate, a, 14)) && tries < 20);
+
+    noBtn.style.position = 'fixed';
+    noBtn.style.left = x + 'px';
+    noBtn.style.top = y + 'px';
+  }
+
+  noBtn.addEventListener('click', () => {
+    if (noClicks >= maxClicks) return;
+    noClicks++;
+    noBtn.textContent = noTexts[noClicks];
+    mascot.textContent = mascotFaces[Math.min(noClicks, mascotFaces.length - 1)];
+    growYes();
+    shrinkNo();
+
+    if (noClicks >= maxClicks) {
+      // "no" retires — only "yes" is left standing.
+      noBtn.style.pointerEvents = 'none';
+      hint.textContent = 'Sanırım tek seçenek kaldı 🙂';
+    } else if (noClicks >= 3) {
+      // Touch has no hover, so the button dodges right after each tap instead —
+      // the next attempt has to find it in its new spot, same as the mouse version.
+      dodgeNoBtn();
+    }
+  });
+
+  // Desktop: the "no" button also dodges the cursor as it approaches, before it's even clicked.
+  document.addEventListener('mousemove', (e) => {
+    if (noClicks < 3) return;
+    const rect = noBtn.getBoundingClientRect();
+    const dx = e.clientX - (rect.left + rect.width / 2);
+    const dy = e.clientY - (rect.top + rect.height / 2);
+    const dist = Math.hypot(dx, dy);
+    if (dist < 90) dodgeNoBtn();
+  });
+
+  function launchConfetti() {
+    const container = document.getElementById('confetti');
+    const emojis = ['💖','💕','🎉','✨','💗'];
+    for (let i = 0; i < 40; i++) {
+      const el = document.createElement('div');
+      el.className = 'heart';
+      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.animationDuration = (2.5 + Math.random() * 2) + 's';
+      el.style.fontSize = (1 + Math.random() * 1.5) + 'rem';
+      container.appendChild(el);
+      setTimeout(() => el.remove(), 5000);
+    }
+  }
+
+  yesBtn.addEventListener('click', () => {
+    questionScreen.style.display = 'none';
+    finalScreen.style.display = 'block';
+    launchConfetti();
+  });
+</script>
+
+</body>
+</html>
